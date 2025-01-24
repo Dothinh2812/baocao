@@ -22,6 +22,8 @@ df_filtered = None # biến của DHSC
 df_pttb = None # biến của pttb
 thong_ke_chung = None #biến của pttb
 
+# Thêm biến global ở đầu file
+temp_data = {}
 
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
@@ -570,7 +572,7 @@ def download_chitiet_thachthat():
 ######################################################## route xử lý báo cáo pttb ####################################################
 @app.route('/pttb', methods=['GET', 'POST'])
 def pttb():
-    global df_pttb, thong_ke_chung
+    global temp_data
     if request.method == 'POST':
         try:
             if 'file' not in request.files:
@@ -585,80 +587,99 @@ def pttb():
             if file and allowed_file(file.filename):
                 app.logger.info(f'Bắt đầu xử lý file: {file.filename}')
                 
-                # Xử lý file Excel
-                df_pttb = pd.read_excel(file, header=1)
-                
-                # Lọc dữ liệu theo DOIVT_KV
-                allowed_doivt = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
-                df_pttb = df_pttb[df_pttb['DOIVT_KV'].isin(allowed_doivt)]
-                
-                # Tạo thống kê chung
-                thong_ke_chung = df_pttb.groupby('DOIVT_KV').size().reset_index(name='Số phiếu tồn')
-                
-                # Tạo biểu đồ tổng quan
-                chart_tong_quan = create_bar_chart(
-                    df=thong_ke_chung,
-                    x_column='DOIVT_KV',
-                    y_column='Số phiếu tồn',
-                    title='Thống kê số phiếu tồn theo Đội VT',
-                    xlabel='Đội VT',
-                    ylabel='Số phiếu tồn',
-                    width=0.4
-                )
-                
-                # Tạo biểu đồ cho từng đội
-                charts = {}
-                for doi_vt in allowed_doivt:
-                    df_doi = df_pttb[df_pttb['DOIVT_KV'] == doi_vt].copy()
-                    df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
-                                              .str.split('-').str[1]
-                                              .str.replace(r'\([^)]*\)', '', regex=True)
-                                              .str.strip())
+                try:
+                    # Đọc file Excel vào DataFrame
+                    df = pd.read_excel(file, header=1)
+                    app.logger.info(f'Đã đọc file Excel, shape: {df.shape}')
                     
-                    thong_ke_doi = df_doi.groupby('TEN_KV').size().reset_index(name='Số lượng')
+                    # Lọc dữ liệu theo DOIVT_KV
+                    allowed_doivt = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
+                    df_filtered = df[df['DOIVT_KV'].isin(allowed_doivt)]
+                    app.logger.info(f'Sau khi lọc, shape: {df_filtered.shape}')
                     
-                    charts[doi_vt] = create_bar_chart(
-                        df=thong_ke_doi,
-                        x_column='TEN_KV',
-                        y_column='Số lượng',
-                        title=f'Thống kê số phiếu tồn theo Khu vực - {doi_vt}',
-                        xlabel='Khu vực',
-                        ylabel='Số lượng',
+                    # Tạo thống kê chung
+                    thong_ke_chung = df_filtered.groupby('DOIVT_KV').size().reset_index(name='Số phiếu tồn')
+                    
+                    # Lưu vào biến global temp_data
+                    temp_data['df_filtered'] = df_filtered
+                    temp_data['thong_ke_chung'] = thong_ke_chung
+                    
+                    # Chỉ lưu trạng thái xử lý trong session
+                    session['pttb_file_processed'] = True
+                    
+                    app.logger.info('Đã lưu dữ liệu vào temp_data')
+                    app.logger.info(f'Kích thước df_filtered: {len(df_filtered)}')
+                    app.logger.info(f'Kích thước thong_ke_chung: {len(thong_ke_chung)}')
+                    
+                    # Tạo biểu đồ tổng quan
+                    chart_tong_quan = create_bar_chart(
+                        df=thong_ke_chung,
+                        x_column='DOIVT_KV',
+                        y_column='Số phiếu tồn',
+                        title='Thống kê số phiếu tồn theo Đội VT',
+                        xlabel='Đội VT',
+                        ylabel='Số phiếu tồn',
                         width=0.4
                     )
+                    
+                    # Tạo biểu đồ cho từng đội
+                    charts = {}
+                    for doi_vt in allowed_doivt:
+                        df_doi = df_filtered[df_filtered['DOIVT_KV'] == doi_vt].copy()
+                        df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
+                                                  .str.split('-').str[1]
+                                                  .str.replace(r'\([^)]*\)', '', regex=True)
+                                                  .str.strip())
+                        
+                        thong_ke_doi = df_doi.groupby('TEN_KV').size().reset_index(name='Số lượng')
+                        
+                        charts[doi_vt] = create_bar_chart(
+                            df=thong_ke_doi,
+                            x_column='TEN_KV',
+                            y_column='Số lượng',
+                            title=f'Thống kê số phiếu tồn theo Khu vực - {doi_vt}',
+                            xlabel='Khu vực',
+                            ylabel='Số lượng',
+                            width=0.4
+                        )
+                    
+                    return render_template('pttb.html',
+                                         show_download=True,
+                                         chart_tong_quan=chart_tong_quan,
+                                         chart_bavi=charts['Ba Vì'],
+                                         chart_phuctho=charts['Phúc Thọ'],
+                                         chart_danphuong=charts['Đan Phượng'],
+                                         chart_sontay=charts['Sơn Tây'],
+                                         chart_thachthat=charts['Thạch Thất'])
                 
-                # Đánh dấu trạng thái trong session
-                session['pttb_file_processed'] = True
-                session['has_data'] = True
-                
-                app.logger.info('Xử lý file thành công')
-                return render_template('pttb.html',
-                                     show_download=True,
-                                     chart_tong_quan=chart_tong_quan,
-                                     chart_bavi=charts['Ba Vì'],
-                                     chart_phuctho=charts['Phúc Thọ'],
-                                     chart_danphuong=charts['Đan Phượng'],
-                                     chart_sontay=charts['Sơn Tây'],
-                                     chart_thachthat=charts['Thạch Thất'])
+                except Exception as e:
+                    app.logger.error(f'Lỗi xử lý dữ liệu: {str(e)}')
+                    return f"Có lỗi xảy ra khi xử lý dữ liệu: {str(e)}"
             else:
-                app.logger.error('Định dạng file không được hỗ trợ')
                 return "Định dạng file không được hỗ trợ. Vui lòng tải lên file Excel."
                 
         except Exception as e:
             app.logger.error(f'Lỗi xử lý file: {str(e)}')
             session['pttb_file_processed'] = False
-            session['has_data'] = False
             return f"Có lỗi xảy ra trong quá trình xử lý: {str(e)}"
             
-    # GET request - hiển thị form upload
-    return render_template('pttb.html', show_download=False)
+    return render_template('pttb.html')
 
 @app.route('/download_pttb')
 def download_pttb():
+    global temp_data
     if not session.get('pttb_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
+        # Lấy dữ liệu từ biến global temp_data
+        df_filtered = temp_data.get('df_filtered')
+        thong_ke_chung = temp_data.get('thong_ke_chung')
+        
+        if df_filtered is None or thong_ke_chung is None:
+            app.logger.error('Không tìm thấy dữ liệu trong temp_data')
+            return "Không có dữ liệu để tải xuống"
+        
         # Tạo buffer trong bộ nhớ để lưu file Excel
         output = io.BytesIO()
         
@@ -669,19 +690,17 @@ def download_pttb():
             # Ghi các sheet cho từng đội
             allowed_doivt = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
             for doi_vt in allowed_doivt:
-                df_doi = df_pttb[df_pttb['DOIVT_KV'] == doi_vt].copy()
-                df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
-                                          .str.split('-').str[1]
-                                          .str.replace(r'\([^)]*\)', '', regex=True)
-                                          .str.strip())
-                thong_ke_kv = df_doi.groupby('TEN_KV').size().reset_index(name='Số lượng')
-                sheet_name = f'pttb_{doi_vt}'
-                thong_ke_kv.to_excel(writer, sheet_name=sheet_name, index=False)
+                df_doi = df_filtered[df_filtered['DOIVT_KV'] == doi_vt].copy()
+                if len(df_doi) > 0:
+                    df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
+                                              .str.split('-').str[1]
+                                              .str.replace(r'\([^)]*\)', '', regex=True)
+                                              .str.strip())
+                    thong_ke_kv = df_doi.groupby('TEN_KV').size().reset_index(name='Số lượng')
+                    sheet_name = f'pttb_{doi_vt}'
+                    thong_ke_kv.to_excel(writer, sheet_name=sheet_name, index=False)
         
-        # Đưa con trỏ về đầu buffer
         output.seek(0)
-        
-        # Trả về file Excel để người dùng tải xuống
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

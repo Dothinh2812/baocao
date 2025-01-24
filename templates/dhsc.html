@@ -82,6 +82,14 @@
         .header {
             margin-bottom: 20px;
         }
+        /* Thêm style cho loading indicator */
+        #loading {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -106,45 +114,44 @@
     <div class="container">
         <!-- Cột trái - Links tải xuống -->
         <div class="left-column">
-            {% if show_download_chitiet %}
-            <div class="download-section">
-                <h4>Tải file chi tiết Ba Vì:</h4>
-                <a href="{{ url_for('download_chitiet_bavi') }}" class="download-link">Tải Chi_tiet_BaVi.xlsx</a>
-            </div>
+            {% if show_download %}
+                <div class="download-section">
+                    <h4>Tải xuống kết quả:</h4>
+                    <a href="{{ url_for('download_excel') }}" 
+                       class="download-link" 
+                       id="download-excel"
+                       style="display: none;">Tải xuống file KET_QUA.xlsx</a>
+                    
+                    <h4>Tải xuống chi tiết:</h4>
+                    <a href="{{ url_for('download_chitiet_bavi') }}" 
+                       class="download-link"
+                       id="download-bavi"
+                       style="display: none;">Chi tiết Ba Vì</a>
+                    
+                    <a href="{{ url_for('download_chitiet_phuctho') }}" 
+                       class="download-link"
+                       id="download-phuctho"
+                       style="display: none;">Chi tiết Phúc Thọ</a>
+                    
+                    <a href="{{ url_for('download_chitiet_danphuong') }}" 
+                       class="download-link"
+                       id="download-danphuong"
+                       style="display: none;">Chi tiết Đan Phượng</a>
+                    
+                    <a href="{{ url_for('download_chitiet_sontay') }}" 
+                       class="download-link"
+                       id="download-sontay"
+                       style="display: none;">Chi tiết Sơn Tây</a>
+                    
+                    <a href="{{ url_for('download_chitiet_thachthat') }}" 
+                       class="download-link"
+                       id="download-thachthat"
+                       style="display: none;">Chi tiết Thạch Thất</a>
+                </div>
+                <div id="loading" style="display: none;">
+                    Đang xử lý dữ liệu...
+                </div>
             {% endif %}
-
-            {% if show_download_chitiet_phuctho %}
-            <div class="download-section">
-                <h4>Tải file chi tiết Phúc Thọ:</h4>
-                <a href="{{ url_for('download_chitiet_phuctho') }}" class="download-link">Tải Chi_tiet_PhucTho.xlsx</a>
-            </div>
-            {% endif %}
-
-            {% if show_download_chitiet_danphuong %}
-            <div class="download-section">
-                <h4>Tải file chi tiết Đan Phượng:</h4>
-                <a href="{{ url_for('download_chitiet_danphuong') }}" class="download-link">Tải Chi_tiet_DanPhuong.xlsx</a>
-            </div>
-            {% endif %}
-
-            {% if show_download_chitiet_sontay %}
-            <div class="download-section">
-                <h4>Tải file chi tiết Sơn Tây:</h4>
-                <a href="{{ url_for('download_chitiet_sontay') }}" class="download-link">Tải Chi_tiet_SonTay.xlsx</a>
-            </div>
-            {% endif %}
-
-            {% if show_download_chitiet_thachthat %}
-            <div class="download-section">
-                <h4>Tải file chi tiết Thạch Thất:</h4>
-                <a href="{{ url_for('download_chitiet_thachthat') }}" class="download-link">Tải Chi_tiet_ThachThat.xlsx</a>
-            </div>
-            {% endif %}
-
-            <div class="download-section">
-                <h4>Tải file tổng hợp:</h4>
-                <a href="{{ url_for('download_excel') }}" class="download-link">Tải file KET_QUA.xlsx</a>
-            </div>
         </div>
 
         <!-- Cột phải - Biểu đồ -->
@@ -181,5 +188,39 @@
         </div>
     </div>
     {% endif %}
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const downloadLinks = [
+            'download-excel',
+            'download-bavi',
+            'download-phuctho',
+            'download-danphuong',
+            'download-sontay',
+            'download-thachthat'
+        ];
+        const loading = document.getElementById('loading');
+
+        form.onsubmit = function() {
+            // Ẩn tất cả các link tải xuống
+            downloadLinks.forEach(id => {
+                const link = document.getElementById(id);
+                if (link) link.style.display = 'none';
+            });
+            // Hiện loading
+            if (loading) loading.style.display = 'block';
+        }
+
+        // Hiện các link tải xuống sau khi xử lý xong
+        {% if show_download %}
+            downloadLinks.forEach(id => {
+                const link = document.getElementById(id);
+                if (link) link.style.display = 'block';
+            });
+            if (loading) loading.style.display = 'none';
+        {% endif %}
+    });
+    </script>
 </body>
 </html>

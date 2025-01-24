@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, session
 import pandas as pd
 import io
 import matplotlib
@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import base64
 
 app = Flask(__name__)
+
+# Thêm secret key cho session
+app.secret_key = 'your_secret_key_here'  # Thay đổi thành một key phức tạp và bảo mật
 
 # Thêm biến global để lưu trữ các DataFrame
 thong_ke_doivt = None # biến của DHSC
@@ -136,6 +139,20 @@ def dhsc():
                 thong_ke_nhomvt_thachthat = df_thachthat.groupby('NHOMVT').size().reset_index(name='Số lượng')
                 thong_ke_nhomvt_thachthat.insert(0, 'STT', range(1, len(thong_ke_nhomvt_thachthat) + 1))
 
+                # Tạo file Excel KET_QUA trong bộ nhớ
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    thong_ke_doivt.to_excel(writer, sheet_name='THONG_KE_DOIVT', index=False)
+                    thong_ke_nhomvt_bavi.to_excel(writer, sheet_name='Ba Vì', index=False)
+                    thong_ke_nhomvt_phuctho.to_excel(writer, sheet_name='Phúc Thọ', index=False)
+                    thong_ke_nhomvt_danphuong.to_excel(writer, sheet_name='Đan Phượng', index=False)
+                    thong_ke_nhomvt_sontay.to_excel(writer, sheet_name='Sơn Tây', index=False)
+                    thong_ke_nhomvt_thachthat.to_excel(writer, sheet_name='Thạch Thất', index=False)
+
+                output.seek(0)
+                # Lưu file Excel vào session để tải xuống sau
+                excel_data = output.getvalue()
+
 
                 # Tạo đồ thị cho tổng quan
                 chart_image = create_chart(thong_ke_doivt)
@@ -150,20 +167,13 @@ def dhsc():
                 # Tạo đồ thị cho Đan Phượng
                 chart_danphuong = create_chart_danphuong(thong_ke_nhomvt_danphuong)
                 
-                # Tạo file Excel KET_QUA trong bộ nhớ
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    thong_ke_doivt.to_excel(writer, sheet_name='THONG_KE_DOIVT', index=False)
-                    thong_ke_nhomvt_bavi.to_excel(writer, sheet_name='Ba Vì', index=False)
-                    thong_ke_nhomvt_phuctho.to_excel(writer, sheet_name='Phúc Thọ', index=False)
-                    thong_ke_nhomvt_danphuong.to_excel(writer, sheet_name='Đan Phượng', index=False)
-                    thong_ke_nhomvt_sontay.to_excel(writer, sheet_name='Sơn Tây', index=False)
-                    thong_ke_nhomvt_thachthat.to_excel(writer, sheet_name='Thạch Thất', index=False)
 
-                output.seek(0)
                 
-                # Lưu file Excel vào session để tải xuống sau
-                excel_data = output.getvalue()
+
+                
+                # Đánh dấu trạng thái đã xử lý file trong session
+                session['dhsc_file_processed'] = True
+                session['has_data'] = True
                 
                 return render_template('dhsc.html', 
                                     chart_image=chart_image,
@@ -177,9 +187,11 @@ def dhsc():
                                     show_download_chitiet_phuctho=True,
                                     show_download_chitiet_danphuong=True,
                                     show_download_chitiet_sontay=True,
-                                    show_download_chitiet_thachthat=True)  # Thêm biến này
+                                    show_download_chitiet_thachthat=True)
 
             except Exception as e:
+                session['dhsc_file_processed'] = False
+                session['has_data'] = False
                 return f"Có lỗi xảy ra trong quá trình xử lý: {str(e)}"
         else:
             return "Định dạng file không được hỗ trợ. Vui lòng tải lên file Excel."
@@ -286,47 +298,35 @@ def create_chart_danphuong(df):
 ##########################################################################################################################
 
 # Thêm route mới để tải file Excel
-@app.route('/download_excel')  # Định nghĩa route cho việc tải file Excel
+@app.route('/download_excel')
 def download_excel():
-    # Khai báo sử dụng các biến global để truy cập dữ liệu đã xử lý
-    global thong_ke_doivt, thong_ke_nhomvt_bavi, thong_ke_nhomvt_phuctho, thong_ke_nhomvt_danphuong
-    
-    # Kiểm tra xem đã có dữ liệu thống kê chưa
-    if thong_ke_doivt is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
-    # Tạo buffer trong bộ nhớ để lưu file Excel
-    output = io.BytesIO()
-    
-    # Tạo ExcelWriter với engine xlsxwriter để ghi nhiều sheet vào một file
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # Ghi từng DataFrame vào các sheet tương ứng
-        thong_ke_doivt.to_excel(writer, sheet_name='THONG_KE_DOIVT', index=False)  # Sheet thống kê chung theo đội
-        thong_ke_nhomvt_bavi.to_excel(writer, sheet_name='Ba Vì', index=False)     # Sheet thống kê riêng Ba Vì
-        thong_ke_nhomvt_phuctho.to_excel(writer, sheet_name='Phúc Thọ', index=False)  # Sheet thống kê riêng Phúc Thọ
-        thong_ke_nhomvt_danphuong.to_excel(writer, sheet_name='Đan Phượng', index=False)  # Sheet thống kê riêng Đan Phượng
-        thong_ke_nhomvt_sontay.to_excel(writer, sheet_name='Sơn Tây', index=False)  # Sheet thống kê riêng Sơn Tây
-        thong_ke_nhomvt_thachthat.to_excel(writer, sheet_name='Thạch Thất', index=False)  # Sheet thống kê riêng Thạch Thất
-    
-    # Đưa con trỏ về đầu buffer để chuẩn bị đọc
-    output.seek(0)
-    
-    # Trả về file Excel để người dùng tải xuống
-    return send_file(
-        output,  # Buffer chứa dữ liệu file Excel
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # Định dạng MIME cho file Excel
-        as_attachment=True,  # Cho phép tải xuống thay vì mở trực tiếp
-        download_name='KET_QUA.xlsx'  # Tên file khi tải xuống
-    )
+    try:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            thong_ke_doivt.to_excel(writer, sheet_name='THONG_KE_DOIVT', index=False)
+            thong_ke_nhomvt_bavi.to_excel(writer, sheet_name='Ba Vì', index=False)
+            thong_ke_nhomvt_phuctho.to_excel(writer, sheet_name='Phúc Thọ', index=False)
+            thong_ke_nhomvt_danphuong.to_excel(writer, sheet_name='Đan Phượng', index=False)
+            thong_ke_nhomvt_sontay.to_excel(writer, sheet_name='Sơn Tây', index=False)
+            thong_ke_nhomvt_thachthat.to_excel(writer, sheet_name='Thạch Thất', index=False)
+        
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='KET_QUA.xlsx'
+        )
+    except Exception as e:
+        return f"Có lỗi xảy ra: {str(e)}"
 
 # Định nghĩa route để tải file chi tiết cho đội Ba Vì
 @app.route('/download_chitiet_bavi')
 def download_chitiet_bavi():
-    # Khai báo sử dụng biến global chứa dữ liệu đã được lọc
-    global df_filtered
-    
-    # Kiểm tra xem đã có dữ liệu được xử lý chưa
-    if df_filtered is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -389,9 +389,7 @@ def download_chitiet_bavi():
 
 @app.route('/download_chitiet_phuctho')
 def download_chitiet_phuctho():
-    global df_filtered
-    
-    if df_filtered is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -436,9 +434,7 @@ def download_chitiet_phuctho():
 
 @app.route('/download_chitiet_danphuong')
 def download_chitiet_danphuong():
-    global df_filtered
-    
-    if df_filtered is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -483,9 +479,7 @@ def download_chitiet_danphuong():
 
 @app.route('/download_chitiet_sontay')
 def download_chitiet_sontay():
-    global df_filtered
-    
-    if df_filtered is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -530,9 +524,7 @@ def download_chitiet_sontay():
 
 @app.route('/download_chitiet_thachthat')
 def download_chitiet_thachthat():
-    global df_filtered
-    
-    if df_filtered is None:
+    if not session.get('dhsc_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -580,51 +572,30 @@ def download_chitiet_thachthat():
 def pttb():
     global df_pttb, thong_ke_chung
     if request.method == 'POST':
-        if 'file' not in request.files:
-            return "Không có file được tải lên."
-        file = request.files['file']
-        if file.filename == '':
-            return "Không có file được chọn."
-        if file and allowed_file(file.filename):
-            try:
-                # Đọc file Excel và xử lý dữ liệu
+        try:
+            if 'file' not in request.files:
+                app.logger.error('Không có file được tải lên')
+                return "Không có file được tải lên."
+                
+            file = request.files['file']
+            if file.filename == '':
+                app.logger.error('Không có file được chọn')
+                return "Không có file được chọn."
+                
+            if file and allowed_file(file.filename):
+                app.logger.info(f'Bắt đầu xử lý file: {file.filename}')
+                
+                # Xử lý file Excel
                 df_pttb = pd.read_excel(file, header=1)
                 
-                # Lọc và tạo thống kê chung
-                allowed_doivt = ['Thạch Thất', 'Sơn Tây', 'Ba Vì', 'Phúc Thọ', 'Đan Phượng']
-                df_filtered = df_pttb[df_pttb['DOIVT_KV'].isin(allowed_doivt)]
+                # Lọc dữ liệu theo DOIVT_KV
+                allowed_doivt = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
+                df_pttb = df_pttb[df_pttb['DOIVT_KV'].isin(allowed_doivt)]
                 
-                # Tạo DataFrame thống kê với tất cả các dịch vụ
-                services = [
-                    'Điện thoại cố định',
-                    'Megawan quang FE',
-                    'Fiber',
-                    'Thuê bao SIP',
-                    'MetroNet GE',
-                    'Cáp quang trắng',
-                    'VNPT Family Safe',
-                    'MetroNet FE',
-                    'Metronet_POP',
-                    'MyTV',
-                    'Wifi Mesh',
-                    'Indoor Camera PT',
-                    'Home Cloud camera'
-                ]
+                # Tạo thống kê chung
+                thong_ke_chung = df_pttb.groupby('DOIVT_KV').size().reset_index(name='Số phiếu tồn')
                 
-                # Tạo DataFrame cơ bản với cột STT và DOIVT_KV
-                thong_ke_chung = pd.DataFrame({'DOIVT_KV': allowed_doivt})
-                thong_ke_chung.insert(0, 'STT', range(1, len(thong_ke_chung) + 1))
-                
-                # Thêm cột tổng số phiếu tồn
-                total_count = df_filtered.groupby('DOIVT_KV').size()
-                thong_ke_chung['Số phiếu tồn'] = thong_ke_chung['DOIVT_KV'].map(total_count).fillna(0).astype(int)
-                
-                # Thêm các cột dịch vụ
-                for service in services:
-                    service_count = df_filtered[df_filtered['LOAIHINH_TB'] == service].groupby('DOIVT_KV').size()
-                    thong_ke_chung[service] = thong_ke_chung['DOIVT_KV'].map(service_count).fillna(0).astype(int)
-                
-                # Tạo biểu đồ tổng quan với width=0.4
+                # Tạo biểu đồ tổng quan
                 chart_tong_quan = create_bar_chart(
                     df=thong_ke_chung,
                     x_column='DOIVT_KV',
@@ -635,11 +606,10 @@ def pttb():
                     width=0.4
                 )
                 
-                # Tạo biểu đồ cho từng đội với width=0.4
+                # Tạo biểu đồ cho từng đội
                 charts = {}
                 for doi_vt in allowed_doivt:
                     df_doi = df_pttb[df_pttb['DOIVT_KV'] == doi_vt].copy()
-                    
                     df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
                                               .str.split('-').str[1]
                                               .str.replace(r'\([^)]*\)', '', regex=True)
@@ -657,6 +627,11 @@ def pttb():
                         width=0.4
                     )
                 
+                # Đánh dấu trạng thái trong session
+                session['pttb_file_processed'] = True
+                session['has_data'] = True
+                
+                app.logger.info('Xử lý file thành công')
                 return render_template('pttb.html',
                                      show_download=True,
                                      chart_tong_quan=chart_tong_quan,
@@ -665,18 +640,22 @@ def pttb():
                                      chart_danphuong=charts['Đan Phượng'],
                                      chart_sontay=charts['Sơn Tây'],
                                      chart_thachthat=charts['Thạch Thất'])
+            else:
+                app.logger.error('Định dạng file không được hỗ trợ')
+                return "Định dạng file không được hỗ trợ. Vui lòng tải lên file Excel."
                 
-            except Exception as e:
-                return f"Có lỗi xảy ra trong quá trình xử lý: {str(e)}"
-        else:
-            return "Định dạng file không được hỗ trợ. Vui lòng tải lên file Excel."
-    return render_template('pttb.html')
+        except Exception as e:
+            app.logger.error(f'Lỗi xử lý file: {str(e)}')
+            session['pttb_file_processed'] = False
+            session['has_data'] = False
+            return f"Có lỗi xảy ra trong quá trình xử lý: {str(e)}"
+            
+    # GET request - hiển thị form upload
+    return render_template('pttb.html', show_download=False)
 
 @app.route('/download_pttb')
 def download_pttb():
-    global df_pttb, thong_ke_chung
-    
-    if thong_ke_chung is None:
+    if not session.get('pttb_file_processed', False):
         return "Vui lòng xử lý file trước khi tải xuống"
     
     try:
@@ -687,28 +666,15 @@ def download_pttb():
             # Ghi sheet thống kê chung
             thong_ke_chung.to_excel(writer, sheet_name='THONG_KE_CHUNG', index=False)
             
-            # Danh sách các đội VT
-            doi_vt_list = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
-            
-            # Tạo sheet chi tiết cho từng đội
-            for doi_vt in doi_vt_list:
-                # Lọc dữ liệu cho từng đội
+            # Ghi các sheet cho từng đội
+            allowed_doivt = ['Ba Vì', 'Phúc Thọ', 'Đan Phượng', 'Sơn Tây', 'Thạch Thất']
+            for doi_vt in allowed_doivt:
                 df_doi = df_pttb[df_pttb['DOIVT_KV'] == doi_vt].copy()
-                
-                # Định dạng lại cột TEN_KV:
-                # 1. Tách theo dấu '-' và lấy phần thứ 2
-                # 2. Loại bỏ nội dung trong dấu ngoặc đơn
-                # 3. Loại bỏ khoảng trắng thừa
                 df_doi.loc[:, 'TEN_KV'] = (df_doi['TEN_KV']
                                           .str.split('-').str[1]
-                                          .str.replace(r'\([^)]*\)', '', regex=True)  # Loại bỏ nội dung trong ()
-                                          .str.strip())  # Loại bỏ khoảng trắng thừa
-                
-                # Group by theo TEN_KV
+                                          .str.replace(r'\([^)]*\)', '', regex=True)
+                                          .str.strip())
                 thong_ke_kv = df_doi.groupby('TEN_KV').size().reset_index(name='Số lượng')
-                thong_ke_kv.insert(0, 'STT', range(1, len(thong_ke_kv) + 1))
-                
-                # Ghi vào sheet tương ứng
                 sheet_name = f'pttb_{doi_vt}'
                 thong_ke_kv.to_excel(writer, sheet_name=sheet_name, index=False)
         
@@ -724,6 +690,7 @@ def download_pttb():
         )
         
     except Exception as e:
+        app.logger.error(f'Lỗi khi tạo file Excel: {str(e)}')
         return f"Có lỗi xảy ra: {str(e)}"
 
 ##########################################################################################################################

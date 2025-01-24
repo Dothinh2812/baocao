@@ -1,0 +1,98 @@
+
+root@n8n:/home/n8n# docker-compose up -d --build
+ERROR: The Compose file './docker-compose.yml' is invalid because:
+volumes.baocao value 'build', 'environment', 'networks', 'ports', 'restart' do not match any of the regexes: '^x-'
+volumes.caddy_config value 'networks' does not match any of the regexes: '^x-'
+root@n8n:/home/n8n# nano docker-compose.yml
+root@n8n:/home/n8n# nano docker-compose.yml
+root@n8n:/home/n8n# docker-compose up -d --build
+ERROR: Named volume "caddy_data:/data:rw" is used in service "caddy" but no declaration was found in the volumes section.
+root@n8n:/home/n8n# nano docker-compose.yml
+root@n8n:/home/n8n# root@n8n:/home/n8n# docker-compose up -d --build
+Creating network "n8n_app_network" with the default driver
+Building baocao
+[+] Building 43.4s (10/10) FINISHED                                                                                                        docker:default
+ => [internal] load build definition from Dockerfile                                                                                                 0.0s
+ => => transferring dockerfile: 687B                                                                                                                 0.0s
+ => [internal] load metadata for docker.io/library/python:3.9-slim                                                                                   4.5s
+ => [internal] load .dockerignore                                                                                                                    0.0s
+ => => transferring context: 255B                                                                                                                    0.0s
+ => [1/5] FROM docker.io/library/python:3.9-slim@sha256:bb8009c87ab69e751a1dd2c6c7f8abaae3d9fce8e072802d4a23c95594d16d84                             8.9s
+ => => resolve docker.io/library/python:3.9-slim@sha256:bb8009c87ab69e751a1dd2c6c7f8abaae3d9fce8e072802d4a23c95594d16d84                             0.0s
+ => => sha256:bb8009c87ab69e751a1dd2c6c7f8abaae3d9fce8e072802d4a23c95594d16d84 10.41kB / 10.41kB                                                     0.0s
+ => => sha256:ddb56f2e39ec00c79c1207f182c60e03ddfdf417525b56ef467e1519706792cd 1.75kB / 1.75kB                                                       0.0s
+ => => sha256:453d3342b002fa5f904ba0cd72a07accb5121641d20776f3e64339842f275d38 5.28kB / 5.28kB                                                       0.0s
+ => => sha256:af302e5c37e9dc1dbe2eadc8f5059d82a914066b541b0d1a6daa91d0cc55057d 28.21MB / 28.21MB                                                     6.6s
+ => => sha256:1da0723265ec311debcf6bec17d4fae5f1e5f7809fca4378aac265cdef238f1c 3.51MB / 3.51MB                                                       2.6s
+ => => sha256:4f4cb1a24c66f1a92f204ba0bbd6d2a7c941a853c83161ffa38bbfa121448861 14.93MB / 14.93MB                                                     3.3s
+ => => sha256:c876ae22765e4a125855eb121718c3f8f07bd8b00dae0ad4e68e716571961f37 249B / 249B                                                           3.1s
+ => => extracting sha256:af302e5c37e9dc1dbe2eadc8f5059d82a914066b541b0d1a6daa91d0cc55057d                                                            1.3s
+ => => extracting sha256:1da0723265ec311debcf6bec17d4fae5f1e5f7809fca4378aac265cdef238f1c                                                            0.1s
+ => => extracting sha256:4f4cb1a24c66f1a92f204ba0bbd6d2a7c941a853c83161ffa38bbfa121448861                                                            0.7s
+ => => extracting sha256:c876ae22765e4a125855eb121718c3f8f07bd8b00dae0ad4e68e716571961f37                                                            0.0s
+ => [internal] load build context                                                                                                                    0.0s
+ => => transferring context: 106.08kB                                                                                                                0.0s
+ => [2/5] WORKDIR /app                                                                                                                               0.0s
+ => [3/5] COPY requirements.txt .                                                                                                                    0.0s
+ => [4/5] RUN pip install --no-cache-dir -r requirements.txt                                                                                        26.9s
+ => [5/5] COPY . .                                                                                                                                   0.4s
+ => exporting to image                                                                                                                               2.4s
+ => => exporting layers                                                                                                                              2.4s
+ => => writing image sha256:2122acbfabe496b09cef2413658896d98a4e05b87392c30a38d35d471ac3b477                                                         0.0s
+ => => naming to docker.io/library/n8n_baocao                                                                                                        0.0s
+Recreating n8n_n8n_1 ...
+Creating n8n_baocao_1 ...
+Recreating n8n_caddy_1 ...
+
+ERROR: for n8n_caddy_1  'ContainerConfig'
+Creating n8n_baocao_1  ... done
+ERROR: for n8n_n8n_1  'ContainerConfig'
+
+ERROR: for caddy  'ContainerConfig'
+
+ERROR: for n8n  'ContainerConfig'
+Traceback (most recent call last):
+  File "/usr/bin/docker-compose", line 33, in <module>
+    sys.exit(load_entry_point('docker-compose==1.29.2', 'console_scripts', 'docker-compose')())
+  File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 81, in main
+    command_func()
+  File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 203, in perform_command
+    handler(command, command_options)
+  File "/usr/lib/python3/dist-packages/compose/metrics/decorator.py", line 18, in wrapper
+    result = fn(*args, **kwargs)
+  File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 1186, in up
+    to_attach = up(False)
+  File "/usr/lib/python3/dist-packages/compose/cli/main.py", line 1166, in up
+    return self.project.up(
+  File "/usr/lib/python3/dist-packages/compose/project.py", line 697, in up
+    results, errors = parallel.parallel_execute(
+  File "/usr/lib/python3/dist-packages/compose/parallel.py", line 108, in parallel_execute
+    raise error_to_reraise
+  File "/usr/lib/python3/dist-packages/compose/parallel.py", line 206, in producer
+    result = func(obj)
+  File "/usr/lib/python3/dist-packages/compose/project.py", line 679, in do
+    return service.execute_convergence_plan(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 579, in execute_convergence_plan
+    return self._execute_convergence_recreate(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 499, in _execute_convergence_recreate
+    containers, errors = parallel_execute(
+  File "/usr/lib/python3/dist-packages/compose/parallel.py", line 108, in parallel_execute
+    raise error_to_reraise
+  File "/usr/lib/python3/dist-packages/compose/parallel.py", line 206, in producer
+    result = func(obj)
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 494, in recreate
+    return self.recreate_container(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 612, in recreate_container
+    new_container = self.create_container(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 330, in create_container
+    container_options = self._get_container_create_options(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 921, in _get_container_create_options
+    container_options, override_options = self._build_container_volume_options(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 960, in _build_container_volume_options
+    binds, affinity = merge_volume_bindings(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 1548, in merge_volume_bindings
+    old_volumes, old_mounts = get_container_data_volumes(
+  File "/usr/lib/python3/dist-packages/compose/service.py", line 1579, in get_container_data_volumes
+    container.image_config['ContainerConfig'].get('Volumes') or {}
+KeyError: 'ContainerConfig'
+root@n8n:/home/n8n#

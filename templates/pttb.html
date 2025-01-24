@@ -104,12 +104,16 @@
 
     <div class="container">
         <div class="left-column">
-            {% if show_download %}
-                <div class="download-section">
-                    <h4>Tải xuống kết quả:</h4>
-                    <a href="{{ url_for('download_pttb') }}" class="download-link">Tải xuống file KET_QUA_PTTB.xlsx</a>
+            <div class="download-section">
+                <h4>Tải xuống kết quả:</h4>
+                <a href="{{ url_for('download_pttb') }}" 
+                   class="download-link" 
+                   id="download-link"
+                   style="display: none;">Tải xuống file KET_QUA_PTTB.xlsx</a>
+                <div id="loading" style="display: none;">
+                    Đang xử lý dữ liệu...
                 </div>
-            {% endif %}
+            </div>
         </div>
 
         <div class="right-column">
@@ -162,5 +166,24 @@
             {% endif %}
         </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const downloadLink = document.getElementById('download-link');
+        const loading = document.getElementById('loading');
+
+        form.onsubmit = function() {
+            downloadLink.style.display = 'none';
+            loading.style.display = 'block';
+        }
+
+        // Hiện link tải xuống sau khi xử lý xong
+        {% if show_download %}
+            downloadLink.style.display = 'block';
+            loading.style.display = 'none';
+        {% endif %}
+    });
+    </script>
 </body>
 </html> 
